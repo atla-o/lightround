@@ -26,7 +26,7 @@ Publisher: **Devo / atla-o**.
 | Hardware, keychain, native signing, local-only secrets | **Local Mac**, only when needed |
 | Working git home | **Origin** |
 | Public open-source home | [github.com/atla-o/lightround](https://github.com/atla-o/lightround) |
-| Public product host | [lightround.devoutshaman.com](https://lightround.devoutshaman.com) — Cloud Run on GCP; Cloudflare is DNS only |
+| Public product host | [lightround.devoutshaman.com](https://lightround.devoutshaman.com) — Cloud Run `lightround-web` (`devo-holding`, `us-west1`); Cloudflare is DNS only |
 | App data / CRM / LP pipeline | **GCP** when we add it. Not Firebase. |
 
 Do not introduce Firebase, Auth0, or a fake backend to make the LP form “feel real.” The contact form is UI-only until a GCP path is specified.
@@ -48,6 +48,15 @@ Do not deploy this site (Vercel, Pages, Cloud Run, or `lightround.devoutshaman.c
 - Dev server: `npm run dev` → port **43180**
 
 Read Next.js notes in `node_modules/next/dist/docs/` before inventing APIs from older training data.
+
+## Production (Cloud Run)
+
+- Service **`lightround-web`**, project `devo-holding`, region `us-west1`. Host `https://lightround.devoutshaman.com`. No separate beta host.
+- `Dockerfile`: Next.js `output: 'standalone'`, listen on `0.0.0.0:$PORT` (default 8080). Image builds use `npm ci` — keep `package-lock.json` committed.
+- Push to `main` auto-deploys via GitHub Actions (`gcloud run deploy lightround-web --source .`). Optional `cloudbuild.yaml` for a later Cloud Build trigger.
+- Public access is `invoker_iam_disabled` (`--no-invoker-iam-check`). **Never** `--allow-unauthenticated` — org policy blocks `allUsers`.
+- Cloudflare DNS-only. No Workers, no Pages. `fund.devoutshaman.com` may later redirect here.
+- Do not deploy to GCP from an agent session unless the user explicitly orders a deploy.
 
 ## Taste
 
