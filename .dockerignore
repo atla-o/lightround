@@ -1,0 +1,15 @@
+.git
+.github
+.cursor
+.next
+node_modules
+npm-debug.log*
+.env
+.env.*
+*.local
+coverage
+agent-tools
+README.md
+AGENTS.md
+CLAUDE.md
+cloudbuild.yaml
