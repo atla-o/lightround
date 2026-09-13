@@ -2,7 +2,7 @@
 
 Lightround is a **counterdecadence fund** under the Devo holding company. It allocates capital and attention toward work that restores civilizational capacity — including Devo’s own organizations and external efforts that refuse extractive and decadent patterns.
 
-The name inverts financialized institutional gravity: *light* against black, *round* against rock. This repository is the first product surface for that allocator: thesis, screens, an illustrative book, and an LP-interest stub. It is not a live fund administration system and it does not publish assets under management.
+The name inverts financialized institutional gravity: *light* against black, *round* against rock. This repository is the first product surface for that allocator: thesis, screens, an illustrative book, and an LP desk that receives notes in the browser. It is not a live fund administration system and it does not publish assets under management.
 
 ## Homes
 
@@ -75,7 +75,7 @@ The service account needs Cloud Run Admin, Service Account User (runtime SA), an
 | `/` | Mandate: one-paragraph thesis, what we fund, what we screen out |
 | `/thesis` | Investment screens and conduct |
 | `/portfolio` | Illustrative allocations (Devo siblings + labeled example theses) |
-| `/contact` | LP / operator interest form — UI only, nothing is transmitted |
+| `/contact` | LP / operator interest form — received in this browser; no CRM |
 
 ## Stack
 
@@ -86,7 +86,7 @@ Next.js (App Router), TypeScript, Tailwind CSS, and shadcn/ui primitives. No aut
 - Invent AUM, performance, or regulatory filings
 - Target named private individuals
 - Treat screens as a brief for harassment or illegal interference
-- Open a real LP pipeline from the contact form
+- Open a CRM or mail pipeline from the contact form (notes persist in the browser until a GCP desk exists)
 
 ## Publisher and process
 

@@ -35,7 +35,7 @@ export function SiteFooter() {
         </div>
         <p className="text-xs leading-5 text-muted-foreground md:col-span-2">
           Publisher {site.publisher}. No AUM figure is published here. The LP
-          desk form does not transmit.{" "}
+          desk receives notes in this browser only.{" "}
           <Link href="/thesis" className="underline underline-offset-4">
             Read the screens
           </Link>

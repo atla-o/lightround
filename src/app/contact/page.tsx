@@ -11,7 +11,7 @@ export default function ContactPage() {
     <PageShell
       kicker="Desk"
       title="Limited partner interest"
-      lede="For allocators who want the mandate, and operators whose work already fits the screens. This page is a form stub. It does not open a CRM, send mail, or create a filing."
+      lede="For allocators who want the mandate, and operators whose work already fits the screens. A completed note is received in this browser. There is no CRM, outbound mail, or filing behind this page."
     >
       <div className="grid gap-12 lg:grid-cols-[minmax(0,22rem)_1fr]">
         <aside className="space-y-4 text-sm leading-7 text-muted-foreground">
