@@ -27,9 +27,9 @@ Publisher: **Devo / atla-o**.
 | Working git home | **Origin** |
 | Public open-source home | [github.com/atla-o/lightround](https://github.com/atla-o/lightround) |
 | Public product host | [lightround.devoutshaman.com](https://lightround.devoutshaman.com) — Cloud Run `lightround-web` (`devo-holding`, `us-west1`); Cloudflare is DNS only |
-| App data / CRM / LP pipeline | **GCP** when we add it. Not Firebase. |
+| App data / CRM / LP pipeline | **GCP** project `devo-holding`. Firestore collection `lightround_lp_notes` via `@google-cloud/firestore`. Not the Firebase JS SDK. |
 
-Do not introduce Firebase, Auth0, or a fake backend to make the LP form “feel real.” The contact form is UI-only until a GCP path is specified.
+The LP desk POSTs to `/api/interest` on Cloud Run `lightround-web`. Success is a Firestore write that can be read back (`GET /api/interest/[id]`). Do not fall back to localStorage as the success path.
 
 Do not deploy this site (Vercel, Pages, Cloud Run, or `lightround.devoutshaman.com`) from an agent session unless the user explicitly orders a deploy. Cloudflare stays DNS-only — do not park the product on Pages or Workers.
 

@@ -11,7 +11,7 @@ export default function ContactPage() {
     <PageShell
       kicker="Desk"
       title="Limited partner interest"
-      lede="For allocators who want the mandate, and operators whose work already fits the screens. This page is a form stub. It does not open a CRM, send mail, or create a filing."
+      lede="For allocators who want the mandate, and operators whose work already fits the screens. A completed note is posted to this Cloud Run service and stored in Firestore in GCP project devo-holding. There is no outbound mail and no regulatory filing."
     >
       <div className="grid gap-12 lg:grid-cols-[minmax(0,22rem)_1fr]">
         <aside className="space-y-4 text-sm leading-7 text-muted-foreground">
@@ -23,6 +23,8 @@ export default function ContactPage() {
           <p>
             Notes should speak to mandate fit: what is being restored, what is
             being refused, and why capital or attention is the right instrument.
+            A successful submit returns a receipt id that can be read back from
+            this desk.
           </p>
         </aside>
         <InterestForm />

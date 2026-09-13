@@ -35,7 +35,8 @@ export function SiteFooter() {
         </div>
         <p className="text-xs leading-5 text-muted-foreground md:col-span-2">
           Publisher {site.publisher}. No AUM figure is published here. The LP
-          desk form does not transmit.{" "}
+          desk writes notes to Firestore in GCP project{" "}
+          <span className="font-mono">devo-holding</span>.{" "}
           <Link href="/thesis" className="underline underline-offset-4">
             Read the screens
           </Link>
