@@ -93,8 +93,8 @@ export default function HomePage() {
 
       <p className="mx-auto mt-14 max-w-2xl text-sm leading-7 text-muted-foreground">
         Limited partners and mandate-fit operators can leave a note at the LP
-        desk. Completed notes are received in this browser until a GCP desk
-        exists. Nothing is filed or mailed.
+        desk. Completed notes are posted to Cloud Run and stored in Firestore
+        in GCP project <span className="font-mono">devo-holding</span>.
       </p>
       <Link
         href="/contact"

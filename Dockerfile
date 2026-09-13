@@ -22,6 +22,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=8080
+ENV GOOGLE_CLOUD_PROJECT=devo-holding
+ENV GCP_PROJECT_ID=devo-holding
 
 RUN mkdir -p public .next && chown node:node public .next
 

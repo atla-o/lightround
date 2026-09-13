@@ -2,7 +2,7 @@
 
 Lightround is a **counterdecadence fund** under the Devo holding company. It allocates capital and attention toward work that restores civilizational capacity — including Devo’s own organizations and external efforts that refuse extractive and decadent patterns.
 
-The name inverts financialized institutional gravity: *light* against black, *round* against rock. This repository is the first product surface for that allocator: thesis, screens, an illustrative book, and an LP desk that receives notes in the browser. It is not a live fund administration system and it does not publish assets under management.
+The name inverts financialized institutional gravity: *light* against black, *round* against rock. This repository is the first product surface for that allocator: thesis, screens, an illustrative book, and an LP desk that posts notes to Cloud Run and stores them in Firestore in GCP project `devo-holding`. It is not a live fund administration system and it does not publish assets under management.
 
 ## Homes
 
@@ -48,7 +48,8 @@ gcloud run deploy lightround-web \
   --source . \
   --project=devo-holding \
   --region=us-west1 \
-  --no-invoker-iam-check
+  --no-invoker-iam-check \
+  --update-env-vars=GOOGLE_CLOUD_PROJECT=devo-holding,GCP_PROJECT_ID=devo-holding
 ```
 
 `--no-invoker-iam-check` sets `invoker_iam_disabled` (annotation `run.googleapis.com/invoker-iam-disabled`). That is how this service is public. **Never** `--allow-unauthenticated`: org policy (domain-restricted sharing) blocks `allUsers`.
@@ -75,18 +76,39 @@ The service account needs Cloud Run Admin, Service Account User (runtime SA), an
 | `/` | Mandate: one-paragraph thesis, what we fund, what we screen out |
 | `/thesis` | Investment screens and conduct |
 | `/portfolio` | Illustrative allocations (Devo siblings + labeled example theses) |
-| `/contact` | LP / operator interest form — received in this browser; no CRM |
+| `/contact` | LP / operator interest form — POST `/api/interest` → Firestore |
+| `/api/interest` | Cloud Run write + read-back of one LP note |
+| `/api/interest/[id]` | Recover one stored note by receipt id |
+
+## LP desk (Firestore)
+
+Notes are written with `@google-cloud/firestore` (GCP client, not the Firebase JS SDK).
+
+| Item | Value |
+| --- | --- |
+| Project | `devo-holding` |
+| Database | `(default)` |
+| Collection | `lightround_lp_notes` |
+| Service | Cloud Run `lightround-web` (`us-west1`) |
+
+Create the native Firestore database once if it does not exist (`us-west1` to match the service). Grant the Cloud Run runtime SA `roles/datastore.user` on `devo-holding`. Recover a receipt:
+
+```bash
+GOOGLE_CLOUD_PROJECT=devo-holding node scripts/recover-lp-note.mjs <receipt-id>
+```
+
+Or `GET /api/interest/<receipt-id>` on the live host. There is no public list of notes.
 
 ## Stack
 
-Next.js (App Router), TypeScript, Tailwind CSS, and shadcn/ui primitives. No auth, no database, no CRM. App data, when it exists, belongs on **GCP** — not Firebase.
+Next.js (App Router), TypeScript, Tailwind CSS, and shadcn/ui primitives. App data lives on **GCP** project `devo-holding`. The LP desk uses Firestore via `@google-cloud/firestore`, not Firebase Auth or the Firebase JS SDK.
 
 ## What this build will not do
 
 - Invent AUM, performance, or regulatory filings
 - Target named private individuals
 - Treat screens as a brief for harassment or illegal interference
-- Open a CRM or mail pipeline from the contact form (notes persist in the browser until a GCP desk exists)
+- Mail or CRM-notify from the contact form (persistence is the desk)
 
 ## Publisher and process
 

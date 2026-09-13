@@ -37,4 +37,5 @@ jobs:
             --project=devo-holding \
             --region=us-west1 \
             --no-invoker-iam-check \
+            --update-env-vars=GOOGLE_CLOUD_PROJECT=devo-holding,GCP_PROJECT_ID=devo-holding \
             --quiet

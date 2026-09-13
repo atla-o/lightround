@@ -1,12 +1,6 @@
-export const INTEREST_NOTES_KEY = "lightround.interest-notes.v1"
-const MAX_NOTES = 20
-const MAX_NOTE_CHARS = 8000
-
 export type InterestRole = "lp" | "operator" | "other"
 
-export type InterestNote = {
-  id: string
-  receivedAt: string
+export type InterestNoteDraft = {
   name: string
   email: string
   organization: string
@@ -14,7 +8,10 @@ export type InterestNote = {
   note: string
 }
 
-export type InterestNoteDraft = Omit<InterestNote, "id" | "receivedAt">
+export type InterestNote = InterestNoteDraft & {
+  id: string
+  receivedAt: string
+}
 
 export const roleLabels: Record<InterestRole, string> = {
   lp: "Limited partner / allocator",
@@ -22,76 +19,55 @@ export const roleLabels: Record<InterestRole, string> = {
   other: "Other",
 }
 
-function isRole(value: unknown): value is InterestRole {
+export const MAX_NOTE_CHARS = 8000
+const MAX_NAME = 200
+const MAX_EMAIL = 254
+const MAX_ORG = 200
+
+export function isInterestRole(value: unknown): value is InterestRole {
   return value === "lp" || value === "operator" || value === "other"
 }
 
-function isNote(value: unknown): value is InterestNote {
-  if (!value || typeof value !== "object") return false
-  const note = value as Record<string, unknown>
-  return (
-    typeof note.id === "string" &&
-    typeof note.receivedAt === "string" &&
-    typeof note.name === "string" &&
-    typeof note.email === "string" &&
-    typeof note.organization === "string" &&
-    isRole(note.role) &&
-    typeof note.note === "string"
-  )
+function isEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
-function readStore(): Storage {
-  if (typeof window === "undefined" || !window.localStorage) {
-    throw new Error("This browser has no local storage.")
-  }
-  return window.localStorage
-}
+export type InterestFieldErrors = Partial<Record<keyof InterestNoteDraft, string>>
 
-export function loadInterestNotes(): InterestNote[] {
-  try {
-    const raw = readStore().getItem(INTEREST_NOTES_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(isNote)
-  } catch {
-    return []
-  }
-}
+export function parseInterestDraft(input: unknown):
+  | { ok: true; draft: InterestNoteDraft }
+  | { ok: false; errors: InterestFieldErrors } {
+  const body = input && typeof input === "object" ? (input as Record<string, unknown>) : {}
+  const name = typeof body.name === "string" ? body.name.trim() : ""
+  const email = typeof body.email === "string" ? body.email.trim() : ""
+  const organization = typeof body.organization === "string" ? body.organization.trim() : ""
+  const role = body.role
+  const note = typeof body.note === "string" ? body.note.trim() : ""
 
-export function latestInterestNote(): InterestNote | null {
-  return loadInterestNotes()[0] ?? null
-}
+  const errors: InterestFieldErrors = {}
+  if (!name) errors.name = "Name is required."
+  else if (name.length > MAX_NAME) errors.name = "Name is too long."
+  if (!email) errors.email = "Email is required."
+  else if (!isEmail(email) || email.length > MAX_EMAIL) errors.email = "Enter a valid email."
+  if (organization.length > MAX_ORG) errors.organization = "Organization is too long."
+  if (!isInterestRole(role)) errors.role = "Choose a role."
+  if (!note) errors.note = "A short note is required."
+  else if (note.length > MAX_NOTE_CHARS) errors.note = "Note is too long."
 
-export function persistInterestNote(draft: InterestNoteDraft): InterestNote {
-  const note: InterestNote = {
-    id: crypto.randomUUID(),
-    receivedAt: new Date().toISOString(),
-    name: draft.name.trim(),
-    email: draft.email.trim(),
-    organization: draft.organization.trim(),
-    role: draft.role,
-    note: draft.note.trim().slice(0, MAX_NOTE_CHARS),
+  if (Object.keys(errors).length > 0 || !isInterestRole(role)) {
+    return { ok: false, errors }
   }
 
-  const next = [note, ...loadInterestNotes()].slice(0, MAX_NOTES)
-
-  try {
-    readStore().setItem(INTEREST_NOTES_KEY, JSON.stringify(next))
-  } catch {
-    throw new Error(
-      "This browser could not store the note. Copy your text if you need a record."
-    )
+  return {
+    ok: true,
+    draft: {
+      name,
+      email,
+      organization,
+      role,
+      note,
+    },
   }
-
-  const stored = loadInterestNotes()
-  if (!stored.some((item) => item.id === note.id)) {
-    throw new Error(
-      "This browser could not store the note. Copy your text if you need a record."
-    )
-  }
-
-  return note
 }
 
 export function formatReceivedAt(iso: string) {
