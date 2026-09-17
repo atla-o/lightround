@@ -8,13 +8,30 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Standing objective (Devo UI-first)
+
+Cursor cloud work for this product: **one promptable environment / one cloud workspace**, kept current.
+
+Priority order for every task unless Devo says otherwise:
+1. **Complete functional UI** — usable end-to-end (persist data, real submit paths, loading/empty/error/success). No blocking coming-soon for core flows.
+2. Black text on **white** backgrounds always — never follow system dark mode / white-on-black.
+3. Ship via merge to `main` (Cloud Run Actions). Do not deploy from the agent unless Devo explicitly says push/ship/merge and deploy.
+
+Parent: Devo (lateral health). Publisher: atla-o. GCP app data: project `devo-holding`. Public hosts on `*.devoutshaman.com` (Cloudflare DNS-only → Cloud Run).
+
+Siblings: Phenomatch, Antiporn, Lessfret, Lightround, Acashi. Holding lander: atla-o/devo → devoutshaman.com.
+
 # Lightround — agent notes
+
+## This product
+
+Counterdecadence fund LP desk.
 
 Lightround is a counterdecadence fund under **Devo**. Thesis: allocate capital and attention toward anything that helps restore civilization, including Devo orgs and external efforts that push against extractive / decadent patterns.
 
 Voice: sharp, institutional, serious. Not meme-y. Not a conspiracy blog. Not activism malware. Not a doxxing tool. Screens are **investment criteria** — what we fund *for* and what we refuse — never calls to violence or illegal interference.
 
-Parent: Devo. Siblings: Phenomatch, Antiporn, Lessfret (wellness). Public domain family: devoutshaman.com. Public product host: **https://lightround.devoutshaman.com** (Cloud Run / GCP; DNS-only on Cloudflare). Do not deploy unless the user explicitly asks.
+Parent: Devo. Siblings: Phenomatch, Antiporn, Lessfret (wellness), Acashi. Public domain family: devoutshaman.com. Public product host: **https://lightround.devoutshaman.com** (Cloud Run / GCP; DNS-only on Cloudflare). Do not deploy unless the user explicitly asks.
 
 Publisher: **Devo / atla-o**.
 
