@@ -17,6 +17,10 @@ Priority order for every task unless Devo says otherwise:
 2. Black text on **white** backgrounds always — never follow system dark mode / white-on-black.
 3. Ship via merge to `main` (Cloud Run Actions). Do not deploy from the agent unless Devo explicitly says push/ship/merge and deploy.
 
+## Live UI preview
+
+Whenever UI is in flux and **not yet on production `main`** (local/dev server, feature branch, or an unmerged PR), this agent must paste a **full, clickable preview URL** Devo can open inside Cursor — the Cloud Agent preview, tunnel, or forwarded-port URL for the running app (typically `npm run dev` on port **43180**). Screenshots and recordings are extra, not a substitute. Production `https://lightround.devoutshaman.com` is not that preview. Skip the preview URL only when the change is docs/CI/non-UI.
+
 Parent: Devo (lateral health). Publisher: atla-o. GCP app data: project `devo-holding`. Public hosts on `*.devoutshaman.com` (Cloudflare DNS-only → Cloud Run).
 
 Siblings: Phenomatch, Antiporn, Lessfret, Lightround, Acashi. Holding lander: atla-o/devo → devoutshaman.com.
