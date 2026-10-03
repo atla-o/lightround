@@ -1,6 +1,5 @@
 # One-off: map humanehealth.devoutshaman.com onto Cloud Run humanehealth-web
 # and add the DNS-only CNAME in the devoutshaman.com Cloudflare zone.
-# Does not deploy or change the Lightround service.
 name: Map humanehealth domain
 
 on:
@@ -19,6 +18,7 @@ jobs:
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
       CF_TOKEN: ${{ secrets.CF_TOKEN }}
+      CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -32,81 +32,98 @@ jobs:
 
       - name: Map the domain and publish DNS
         run: |
-          set -u
-          echo "===== domain-mappings help ====="
-          gcloud run domain-mappings --help || true
-          gcloud beta run domain-mappings --help || true
+          set +e
+          gcloud components install beta --quiet
+          echo "beta_install_exit:$?"
 
-          echo "===== secret names ====="
-          gcloud secrets list --project=devo-holding --format='value(name)' || true
-
-          echo "===== existing acashi mapping ====="
-          gcloud run domain-mappings describe --domain=acashi.devoutshaman.com --project=devo-holding --format=yaml || \
-            gcloud beta run domain-mappings describe --domain=acashi.devoutshaman.com --region=us-west1 --project=devo-holding --format=yaml || true
+          echo "===== acashi mapping ====="
+          gcloud beta run domain-mappings describe \
+            --domain=acashi.devoutshaman.com \
+            --region=us-west1 \
+            --project=devo-holding \
+            --format=yaml
+          echo "acashi_describe_exit:$?"
 
           echo "===== create humanehealth mapping ====="
-          if ! gcloud run domain-mappings describe --domain=humanehealth.devoutshaman.com --project=devo-holding >/dev/null 2>&1 \
-            && ! gcloud beta run domain-mappings describe --domain=humanehealth.devoutshaman.com --region=us-west1 --project=devo-holding >/dev/null 2>&1; then
-            gcloud run domain-mappings create \
-              --service=humanehealth-web \
-              --domain=humanehealth.devoutshaman.com \
-              --project=devo-holding \
-              --quiet \
-            || gcloud beta run domain-mappings create \
+          gcloud beta run domain-mappings describe \
+            --domain=humanehealth.devoutshaman.com \
+            --region=us-west1 \
+            --project=devo-holding \
+            --format=yaml
+          if [ $? -ne 0 ]; then
+            gcloud beta run domain-mappings create \
               --service=humanehealth-web \
               --domain=humanehealth.devoutshaman.com \
               --region=us-west1 \
               --project=devo-holding \
               --quiet
-          else
-            echo "mapping already exists"
+            echo "create_exit:$?"
+            gcloud beta run domain-mappings describe \
+              --domain=humanehealth.devoutshaman.com \
+              --region=us-west1 \
+              --project=devo-holding \
+              --format=yaml
           fi
-          gcloud run domain-mappings describe --domain=humanehealth.devoutshaman.com --project=devo-holding --format=yaml \
-            || gcloud beta run domain-mappings describe --domain=humanehealth.devoutshaman.com --region=us-west1 --project=devo-holding --format=yaml
 
-          token="${CLOUDFLARE_API_TOKEN:-${CF_API_TOKEN:-${CLOUDFLARE_TOKEN:-${CF_TOKEN:-}}}}"
-          if [ -z "$token" ]; then
-            for name in $(gcloud secrets list --project=devo-holding --format='value(name)'); do
-              case "$name" in
-                *cloudflare*|*CLOUDFLARE*|*cf-api*|*CF_API*|*cf_api*)
-                  echo "using secret manager name: $name"
-                  token="$(gcloud secrets versions access latest --secret="$name" --project=devo-holding)"
-                  break
-                  ;;
-              esac
-            done
-          fi
+          python3 - <<'PY'
+          import os
+          names = [
+            "CLOUDFLARE_API_TOKEN","CF_API_TOKEN","CLOUDFLARE_TOKEN",
+            "CF_TOKEN","CLOUDFLARE_API_KEY",
+          ]
+          for name in names:
+              val = os.environ.get(name) or ""
+              print(f"{name}={'set' if val else 'missing'} len={len(val)}")
+          PY
+
+          token="${CLOUDFLARE_API_TOKEN:-${CF_API_TOKEN:-${CLOUDFLARE_TOKEN:-${CF_TOKEN:-${CLOUDFLARE_API_KEY:-}}}}}"
           if [ -z "$token" ]; then
             echo "NO_CLOUDFLARE_TOKEN"
             exit 1
           fi
           echo "CLOUDFLARE_TOKEN_PRESENT"
-
-          zone_json="$(curl -fsS -H "Authorization: Bearer $token" \
+          zone_json="$(curl -sS -H "Authorization: Bearer $token" \
             "https://api.cloudflare.com/client/v4/zones?name=devoutshaman.com")"
-          zone_id="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["result"][0]["id"])' <<<"$zone_json")"
-          echo "zone_id=$zone_id"
-
-          existing="$(curl -fsS -H "Authorization: Bearer $token" \
-            "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=CNAME&name=humanehealth.devoutshaman.com")"
-          python3 - <<'PY' "$existing"
-          import json,sys
-          d=json.loads(sys.argv[1])
-          print("existing_count", len(d.get("result") or []))
-          for r in d.get("result") or []:
-              print(r.get("id"), r.get("type"), r.get("name"), r.get("content"), "proxied="+str(r.get("proxied")))
+          python3 -c 'import json,os,sys; d=json.loads(os.environ["Z"]); print("zone_success", d.get("success"), "errors", d.get("errors")); r=d.get("result") or []; print("zones", len(r));
+print("zone_id", r[0]["id"] if r else "")' 
+          Z="$zone_json" python3 - <<'PY'
+          import json, os
+          d = json.loads(os.environ["Z"])
+          print("zone_success", d.get("success"), "errors", d.get("errors"))
+          result = d.get("result") or []
+          print("zones", len(result))
+          if not result:
+              raise SystemExit(1)
+          open("/tmp/zone_id","w").write(result[0]["id"])
           PY
+          zone_id="$(cat /tmp/zone_id)"
+          echo "zone_id_len=${#zone_id}"
 
-          body='{"type":"CNAME","name":"humanehealth","content":"ghs.googlehosted.com","proxied":false,"ttl":1,"comment":"humanehealth-web Cloud Run"}'
-          record_id="$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); print((d.get("result") or [{}])[0].get("id",""))' "$existing")"
+          existing="$(curl -sS -H "Authorization: Bearer $token" \
+            "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=CNAME&name=humanehealth.devoutshaman.com")"
+          Z="$existing" python3 - <<'PY'
+          import json, os
+          d = json.loads(os.environ["Z"])
+          rows = d.get("result") or []
+          print("existing", len(rows), "success", d.get("success"))
+          open("/tmp/record_id","w").write(rows[0]["id"] if rows else "")
+          PY
+          record_id="$(cat /tmp/record_id)"
+          body='{"type":"CNAME","name":"humanehealth","content":"ghs.googlehosted.com","proxied":false,"ttl":1}'
           if [ -n "$record_id" ]; then
-            echo "updating $record_id"
-            curl -fsS -X PUT -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
-              "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" \
-              --data "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("success"), (d.get("result") or {}).get("name"), (d.get("result") or {}).get("content"), (d.get("result") or {}).get("proxied"))'
+            resp="$(curl -sS -X PUT -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+              "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" --data "$body")"
           else
-            echo "creating CNAME"
-            curl -fsS -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
-              "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records" \
-              --data "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("success"), d.get("errors"), (d.get("result") or {}).get("name"), (d.get("result") or {}).get("content"), (d.get("result") or {}).get("proxied"))'
+            resp="$(curl -sS -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+              "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records" --data "$body")"
           fi
+          Z="$resp" python3 - <<'PY'
+          import json, os, sys
+          d = json.loads(os.environ["Z"])
+          result = d.get("result") or {}
+          print("dns_success", d.get("success"))
+          print("errors", d.get("errors"))
+          print("name", result.get("name"), "content", result.get("content"), "proxied", result.get("proxied"))
+          if not d.get("success"):
+              sys.exit(1)
+          PY
