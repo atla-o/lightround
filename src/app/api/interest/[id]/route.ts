@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server"
+import { READ_KEY_HEADER } from "@/lib/interest-notes"
 import { deskUnavailableMessage, readInterestNote } from "@/lib/interest-store"
+import { readKeysMatch } from "@/lib/read-key"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params
@@ -16,11 +18,19 @@ export async function GET(
     )
   }
 
+  const readKey = request.headers.get(READ_KEY_HEADER)?.trim() ?? ""
+  if (!readKey || readKey.length > 128) {
+    return NextResponse.json(
+      { ok: false, error: "A read key is required." },
+      { status: 401 }
+    )
+  }
+
   try {
     const note = await readInterestNote(id)
-    if (!note) {
+    if (!note || !readKeysMatch(note.readKey, readKey)) {
       return NextResponse.json(
-        { ok: false, error: "No note at that receipt." },
+        { ok: false, error: "No note matches that receipt and read key." },
         { status: 404 }
       )
     }

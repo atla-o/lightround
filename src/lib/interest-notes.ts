@@ -11,7 +11,10 @@ export type InterestNoteDraft = {
 export type InterestNote = InterestNoteDraft & {
   id: string
   receivedAt: string
+  readKey: string
 }
+
+export const READ_KEY_HEADER = "x-read-key"
 
 export const roleLabels: Record<InterestRole, string> = {
   lp: "Limited partner / allocator",

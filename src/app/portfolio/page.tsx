@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { HouseMap } from "@/components/house-map"
 import { PageShell } from "@/components/page-shell"
 import { allocations, bookDisclaimer } from "@/lib/allocations"
 
@@ -7,67 +8,49 @@ export const metadata: Metadata = {
 }
 
 export default function PortfolioPage() {
-  const siblings = allocations.filter((item) => item.kind === "devo-sibling")
-  const examples = allocations.filter((item) => item.kind === "example-external")
-
   return (
     <PageShell
       kicker="Book"
       title="Illustrative allocations"
       lede={bookDisclaimer}
     >
-      <BookSection
-        heading="Devo-adjacent"
-        intro="Sibling organizations under the holding. Labeled as related work, not as marked-to-market positions."
-        items={siblings}
-      />
-      <BookSection
-        heading="External example theses"
-        intro="Placeholder theses that fit the screens. Not companies Lightround has backed. Not invitations to contact the people who work in these fields."
-        items={examples}
-      />
+      <HouseMap />
+      <section className="mt-14">
+        <p className="text-[0.68rem] font-medium tracking-[0.18em] text-[var(--rule)] uppercase">
+          External example theses
+        </p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-black">
+          Placeholder theses that fit the screens. Each one is labeled example
+          thesis. They are illustrations of the mandate.
+        </p>
+        {allocations.length === 0 ? (
+          <p className="mt-8 border border-border bg-white px-4 py-6 text-sm leading-6 text-black">
+            No example theses are listed in this build.
+          </p>
+        ) : (
+          <ul className="mt-8 divide-y divide-border border-y border-border">
+            {allocations.map((item) => (
+              <li
+                key={item.id}
+                className="grid gap-3 bg-white py-6 sm:grid-cols-[minmax(0,11rem)_1fr] sm:gap-8"
+              >
+                <div>
+                  <h2 className="text-xl leading-tight text-black">{item.name}</h2>
+                  <p className="mt-2 text-[0.72rem] tracking-[0.08em] text-black/70 uppercase">
+                    {item.house} · {item.posture}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm leading-7 text-black">{item.summary}</p>
+                  <p className="mt-3 text-xs tracking-wide text-black/70">
+                    Screens: {item.screens.join(" · ")}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </PageShell>
-  )
-}
-
-function BookSection({
-  heading,
-  intro,
-  items,
-}: {
-  heading: string
-  intro: string
-  items: typeof allocations
-}) {
-  return (
-    <section className="mb-14 last:mb-0">
-      <p className="text-[0.68rem] font-medium tracking-[0.18em] text-[var(--rule)] uppercase">
-        {heading}
-      </p>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-        {intro}
-      </p>
-      <ul className="mt-8 divide-y divide-border border-y border-border">
-        {items.map((item) => (
-          <li
-            key={item.id}
-            className="grid gap-3 py-6 sm:grid-cols-[minmax(0,11rem)_1fr] sm:gap-8"
-          >
-            <div>
-              <h2 className="text-xl leading-tight">{item.name}</h2>
-              <p className="mt-2 text-[0.72rem] tracking-[0.08em] text-muted-foreground uppercase">
-                {item.house} · {item.posture}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm leading-7">{item.summary}</p>
-              <p className="mt-3 text-xs tracking-wide text-muted-foreground">
-                Screens: {item.screens.join(" · ")}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
   )
 }

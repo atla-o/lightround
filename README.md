@@ -73,12 +73,14 @@ The service account needs Cloud Run Admin, Service Account User (runtime SA), an
 
 | Path | Purpose |
 | --- | --- |
-| `/` | Mandate: one-paragraph thesis, what we fund, what we screen out |
+| `/` | Mandate, plus the four peer tops |
+| `/succession` | Investor succession: Arcada, Lightround, Humanehealth, Mattercircle. Clinic network nested under Humanehealth |
+| `/roadmap` | Investor roadmap across that map. No AUM, no raise calendar |
 | `/thesis` | Investment screens and conduct |
-| `/portfolio` | Illustrative allocations (Devo siblings + labeled example theses) |
+| `/portfolio` | House map plus labeled example theses |
 | `/contact` | LP / operator interest form — POST `/api/interest` → Firestore |
-| `/api/interest` | Cloud Run write + read-back of one LP note |
-| `/api/interest/[id]` | Recover one stored note by receipt id |
+| `/api/interest` | Cloud Run write. Response includes a read key |
+| `/api/interest/[id]` | Read one stored note. Requires header `x-read-key` |
 
 ## LP desk (Firestore)
 
@@ -91,13 +93,13 @@ Notes are written with `@google-cloud/firestore` (GCP client, not the Firebase J
 | Collection | `lightround_lp_notes` |
 | Service | Cloud Run `lightround-web` (`us-west1`) |
 
-Create the native Firestore database once if it does not exist (`us-west1` to match the service). Grant the Cloud Run runtime SA `roles/datastore.user` on `devo-holding`. Recover a receipt:
+Create the native Firestore database once if it does not exist (`us-west1` to match the service). Grant the Cloud Run runtime SA `roles/datastore.user` on `devo-holding`. A submit returns a receipt id and a read key. Public read-back sends that key in the `x-read-key` header. A receipt id alone does not return the note. Notes written before read keys exist are withheld from the public route. Recover a receipt with Application Default Credentials:
 
 ```bash
 GOOGLE_CLOUD_PROJECT=devo-holding node scripts/recover-lp-note.mjs <receipt-id>
 ```
 
-Or `GET /api/interest/<receipt-id>` on the live host. There is no public list of notes.
+There is no public list of notes.
 
 ## Stack
 

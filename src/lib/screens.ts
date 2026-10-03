@@ -94,5 +94,5 @@ export const conduct = [
   "No targeting of named private individuals for harassment, doxxing, or extra-legal pressure.",
   "No illegal interference with facilities, supply chains, or persons. Screens are allocation rules.",
   "No forged filings, invented AUM, or simulated regulatory status.",
-  "Sibling Devo products may appear as related work. They are labeled. External names in this build are example theses only.",
+  "Clinic-network names under Humanehealth may appear as related work. They are labeled as nested in that hub. External names in this build are example theses only.",
 ]

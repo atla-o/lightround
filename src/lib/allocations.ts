@@ -1,49 +1,19 @@
-export type AllocationKind = "devo-sibling" | "example-external";
+export type AllocationKind = "example-external";
 
 export type Allocation = {
   id: string
   name: string
   kind: AllocationKind
   house: string
-  posture: "Sibling" | "Example thesis"
+  posture: "Example thesis"
   summary: string
   screens: string[]
 }
 
 export const bookDisclaimer =
-  "Illustrative book only. These entries are placeholder Devo-adjacent organizations and example external theses. They are not a live portfolio, not an assets-under-management figure, and not an offer to sell or a solicitation to buy any security."
+  "Illustrative book only. The four peer tops and the Humanehealth clinic network are the house map. External entries below are example theses. This page is not a live portfolio, not an assets-under-management figure, and not an offer to sell or a solicitation to buy any security."
 
 export const allocations: Allocation[] = [
-  {
-    id: "phenomatch",
-    name: "Phenomatch",
-    kind: "devo-sibling",
-    house: "Devo",
-    posture: "Sibling",
-    summary:
-      "Match people by phenotype, with revenue directed toward a fertility program. A Devo product aimed at pairing and family formation rather than engagement metrics.",
-    screens: ["Fertility-adjacent", "Pro-human institutions"],
-  },
-  {
-    id: "antiporn",
-    name: "Antiporn",
-    kind: "devo-sibling",
-    house: "Devo",
-    posture: "Sibling",
-    summary:
-      "Computer restriction that blocks pornography and other user-defined net negatives. Attention infrastructure: the machine should not be an extraction engine.",
-    screens: ["Attention resilience", "Pro-human culture"],
-  },
-  {
-    id: "lessfret",
-    name: "Lessfret",
-    kind: "devo-sibling",
-    house: "Devo",
-    posture: "Sibling",
-    summary:
-      "Wellness work aimed at lowering chronic anxiety load so people can parent, build, and remain capable. Adjacent to Devo’s lateral health holding.",
-    screens: ["Health", "Human flourishing"],
-  },
   {
     id: "materials",
     name: "Regional materials substitution",

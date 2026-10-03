@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { InterestForm } from "@/components/interest-form"
 import { PageShell } from "@/components/page-shell"
+import { ReceiptLookup } from "@/components/receipt-lookup"
 
 export const metadata: Metadata = {
   title: "LP desk",
@@ -14,7 +15,7 @@ export default function ContactPage() {
       lede="For allocators who want the mandate, and operators whose work already fits the screens. A completed note is posted to this Cloud Run service and stored in Firestore in GCP project devo-holding. There is no outbound mail and no regulatory filing."
     >
       <div className="grid gap-12 lg:grid-cols-[minmax(0,22rem)_1fr]">
-        <aside className="space-y-4 text-sm leading-7 text-muted-foreground">
+        <aside className="space-y-4 text-sm leading-7 text-black">
           <p>
             Lightround does not publish an AUM figure, a live book, or a
             subscription document on this site. If you are here for a rant or a
@@ -23,11 +24,14 @@ export default function ContactPage() {
           <p>
             Notes should speak to mandate fit: what is being restored, what is
             being refused, and why capital or attention is the right instrument.
-            A successful submit returns a receipt id that can be read back from
-            this desk.
+            A successful submit returns a receipt id and a read key. The desk
+            shows the note again when both are presented.
           </p>
         </aside>
-        <InterestForm />
+        <div className="space-y-12">
+          <InterestForm />
+          <ReceiptLookup />
+        </div>
       </div>
     </PageShell>
   )

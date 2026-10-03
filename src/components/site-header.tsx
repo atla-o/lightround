@@ -9,12 +9,12 @@ export function SiteHeader() {
   const pathname = usePathname()
 
   return (
-    <header className="border-b border-border">
+    <header className="border-b border-border bg-white text-black">
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center px-5 py-6 text-center sm:px-8">
         <Link
           href="/"
           aria-label={`${site.name} home`}
-          className="font-heading text-sm leading-none tracking-tight text-foreground"
+          className="font-heading text-sm leading-none tracking-tight text-black"
         >
           o
         </Link>
@@ -37,8 +37,8 @@ export function SiteHeader() {
                 className={cn(
                   "text-[0.8rem] tracking-[0.08em] uppercase transition-colors",
                   active
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "text-black"
+                    : "text-black/70 hover:text-black"
                 )}
               >
                 {item.label}
