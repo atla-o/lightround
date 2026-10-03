@@ -1,0 +1,55 @@
+# Deploys atla-o/mattercircle main onto mattercircle-web.
+# Does not change DNS, Cloudflare, or environment variables.
+name: Deploy mattercircle-web
+
+on:
+  push:
+    branches: [cursor/deploy-mattercircle-web-e8a3]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: devo-holding
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Checkout mattercircle main
+        run: git clone --depth 1 --branch main https://github.com/atla-o/mattercircle.git mattercircle
+
+      - name: Deploy mattercircle-web
+        working-directory: mattercircle
+        run: |
+          set -euo pipefail
+          names() {
+            gcloud run services describe mattercircle-web \
+              --project=devo-holding \
+              --region=us-west1 \
+              --format='value(spec.template.spec.containers[0].env[].name)'
+          }
+          before="$(names || true)"
+          echo "env_names_before=${before}"
+          gcloud run deploy mattercircle-web \
+            --source . \
+            --project=devo-holding \
+            --region=us-west1 \
+            --no-invoker-iam-check \
+            --quiet
+          after="$(names)"
+          echo "env_names_after=${after}"
+          case " ${after} " in
+            *" STRIPE_SECRET_KEY "*) ;;
+            *) echo "Stripe key missing after deploy"; exit 1 ;;
+          esac
