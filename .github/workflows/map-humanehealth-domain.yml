@@ -1,0 +1,32 @@
+name: Map humanehealth domain
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: devo-holding
+          workload_identity_provider: projects/384302503084/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-cloud-run-deploy@devo-holding.iam.gserviceaccount.com
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Create Cloud Run domain mapping
+        run: |
+          set -euo pipefail
+          gcloud components install beta --quiet
+          python3 scripts/map-humanehealth-domain.py
