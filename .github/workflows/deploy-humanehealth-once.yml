@@ -1,0 +1,54 @@
+# One-off: humanehealth cannot impersonate the shared deploy service account yet.
+# This workflow runs with Lightround's existing Workload Identity and deploys
+# atla-o/humanehealth main to Cloud Run humanehealth-web. It does not change
+# the Lightround service.
+name: Deploy humanehealth-web once
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: devo-holding
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Let humanehealth impersonate the deploy account
+        continue-on-error: true
+        run: |
+          gcloud iam service-accounts add-iam-policy-binding \
+            github-cloud-run-deploy@devo-holding.iam.gserviceaccount.com \
+            --project=devo-holding \
+            --role=roles/iam.workloadIdentityUser \
+            --member="principalSet://iam.googleapis.com/projects/384302503084/locations/global/workloadIdentityPools/github-pool/attribute.repository/atla-o/humanehealth"
+
+      - name: Checkout humanehealth
+        uses: actions/checkout@v4
+        with:
+          repository: atla-o/humanehealth
+          ref: main
+          path: humanehealth
+
+      - name: Deploy humanehealth-web
+        working-directory: humanehealth
+        run: |
+          gcloud run deploy humanehealth-web \
+            --source . \
+            --project=devo-holding \
+            --region=us-west1 \
+            --no-invoker-iam-check \
+            --update-env-vars=GCP_PROJECT=devo-holding,GOOGLE_CLOUD_PROJECT=devo-holding \
+            --quiet
