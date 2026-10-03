@@ -28,29 +28,41 @@ jobs:
       - name: Create the domain mapping
         run: |
           set -u
-          gcloud components install beta --quiet
-          echo "===== phenomatch mapping ====="
-          gcloud beta run domain-mappings describe \
-            --domain=phenomatch.devoutshaman.com \
-            --region=us-west1 \
-            --project=devo-holding \
-            --format="yaml(spec,status.resourceRecords,status.conditions)"
-          echo "===== mattercircle mapping ====="
-          if ! gcloud beta run domain-mappings describe \
-            --domain=mattercircle.devoutshaman.com \
-            --region=us-west1 \
-            --project=devo-holding >/dev/null 2>&1; then
-            gcloud beta run domain-mappings create \
-              --service=mattercircle-web \
-              --domain=mattercircle.devoutshaman.com \
-              --region=us-west1 \
-              --project=devo-holding \
-              --quiet
-          else
-            echo "mapping already exists"
+          token="$(gcloud auth print-access-token)"
+          echo "account=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
+          sites="$(curl -sS -H "Authorization: Bearer $token" \
+            "https://www.googleapis.com/siteVerification/v1/webResource")"
+          Z="$sites" python3 - <<'PY'
+          import json, os
+          d = json.loads(os.environ["Z"])
+          items = d.get("items") or []
+          print("verified_sites", len(items))
+          for item in items:
+              site = item.get("site") or {}
+              print("site", site.get("type"), site.get("identifier"))
+          if d.get("error"):
+              print("site_error", d["error"].get("code"), d["error"].get("message"))
+          PY
+          body='{"apiVersion":"domains.cloudrun.com/v1","kind":"DomainMapping","metadata":{"name":"mattercircle.devoutshaman.com","namespace":"devo-holding"},"spec":{"routeName":"mattercircle-web"}}'
+          echo "===== api create ====="
+          code="$(curl -sS -o /tmp/mapping.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $token" \
+            -H 'Content-Type: application/json' \
+            "https://run.googleapis.com/v1/projects/devo-holding/locations/us-west1/domainmappings" \
+            --data "$body")"
+          echo "http_status=$code"
+          python3 - <<'PY'
+          import json
+          d = json.load(open("/tmp/mapping.json"))
+          err = d.get("error") or {}
+          print("error_code", err.get("code"))
+          print("error_message", err.get("message"))
+          meta = d.get("metadata") or {}
+          print("name", meta.get("name"))
+          status = d.get("status") or {}
+          print("conditions", status.get("conditions"))
+          print("records", status.get("resourceRecords"))
+          PY
+          if [ "$code" != "200" ] && [ "$code" != "201" ] && [ "$code" != "409" ]; then
+            exit 1
           fi
-          gcloud beta run domain-mappings describe \
-            --domain=mattercircle.devoutshaman.com \
-            --region=us-west1 \
-            --project=devo-holding \
-            --format=yaml
