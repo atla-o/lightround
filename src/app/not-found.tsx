@@ -8,9 +8,9 @@ export default function NotFound() {
         Missing
       </p>
       <h1 className="mt-3 text-4xl">No page at this path.</h1>
-      <p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">
-        The mandate, the illustrative book, and the LP desk are the surfaces
-        that exist in this build.
+      <p className="mt-4 max-w-md text-sm leading-7 text-black">
+        The mandate, succession, roadmap, illustrative book, and LP desk are
+        the surfaces in this build.
       </p>
       <Button nativeButton={false} render={<Link href="/" />} className="mt-8 h-10 rounded-sm px-4">
         Return to the mandate

@@ -2,6 +2,7 @@
 /**
  * Recover one LP desk note from Firestore in GCP project devo-holding.
  * Uses Application Default Credentials. Does not deploy.
+ * The public API also requires the note's read key (`x-read-key`). This script prints the stored document, including that key.
  *
  *   GOOGLE_CLOUD_PROJECT=devo-holding node scripts/recover-lp-note.mjs <receipt-id>
  */

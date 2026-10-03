@@ -27,7 +27,7 @@ export default function ThesisPage() {
 
       <section className="mt-16 border-t border-border pt-10">
         <h2 className="text-2xl">Conduct</h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-black">
           Lightround is a fund product. Screens describe capital and attention.
           They do not authorize harassment, extra-legal action, or targeting of
           private persons.
@@ -58,15 +58,15 @@ function ScreenColumn({
       <p className="text-[0.68rem] font-medium tracking-[0.18em] text-[var(--rule)] uppercase">
         {heading}
       </p>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">{intro}</p>
+      <p className="mt-2 text-sm leading-6 text-black">{intro}</p>
       <ol className="mt-8 space-y-8">
         {items.map((item, index) => (
           <li key={item.id}>
-            <p className="text-[0.68rem] tabular-nums text-muted-foreground">
+            <p className="text-[0.68rem] tabular-nums text-black">
               {String(index + 1).padStart(2, "0")}
             </p>
             <h2 className="mt-1 text-2xl leading-tight">{item.title}</h2>
-            <p className="mt-2 text-sm leading-7 text-foreground/90">
+            <p className="mt-2 text-sm leading-7 text-black">
               {item.criterion}
             </p>
           </li>

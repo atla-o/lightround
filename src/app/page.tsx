@@ -1,17 +1,18 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { clinicNetwork, peerLine, tops } from "@/lib/house"
 
 export default function HomePage() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-5 py-14 text-center sm:px-8 sm:py-20">
-      <p className="text-[0.68rem] font-medium tracking-[0.22em] text-muted-foreground uppercase">
+    <div className="mx-auto w-full max-w-5xl bg-white px-5 py-14 text-center text-black sm:px-8 sm:py-20">
+      <p className="text-[0.68rem] font-medium tracking-[0.22em] text-black uppercase">
         Allocator
       </p>
       <h1 className="mx-auto mt-4 max-w-3xl text-4xl leading-[1.12] sm:text-6xl">
         Capital toward restoration, not extraction.
       </h1>
-      <p className="mx-auto mt-8 max-w-2xl text-base leading-8 text-foreground/90 sm:text-lg">
+      <p className="mx-auto mt-8 max-w-2xl text-base leading-8 text-black sm:text-lg">
         Lightround is a counterdecadence fund under Devo. We allocate capital and
         attention toward work that restores civilizational capacity: durable
         infrastructure, human flourishing, and institutions that outlast
@@ -34,6 +35,35 @@ export default function HomePage() {
           See the illustrative book
         </Button>
       </div>
+
+      <Separator className="my-14" />
+
+      <section className="mx-auto max-w-2xl text-left">
+        <p className="text-[0.68rem] font-medium tracking-[0.18em] text-[var(--rule)] uppercase">
+          Succession
+        </p>
+        <p className="mt-3 text-sm leading-7 text-black">
+          Four peer tops: {peerLine}.
+        </p>
+        <ol className="mt-4 space-y-2 text-sm leading-7 text-black">
+          {tops.map((top) => (
+            <li key={top.id}>
+              <strong className="font-medium">{top.name}.</strong> {top.role}.
+            </li>
+          ))}
+        </ol>
+        <p className="mt-4 text-sm leading-7 text-black">
+          Under Humanehealth: {clinicNetwork.map((node) => node.name).join(", ")}.
+        </p>
+        <p className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <Link href="/succession" className="underline underline-offset-4">
+            Read the succession
+          </Link>
+          <Link href="/roadmap" className="underline underline-offset-4">
+            Read the roadmap
+          </Link>
+        </p>
+      </section>
 
       <Separator className="my-14" />
 
@@ -91,7 +121,7 @@ export default function HomePage() {
         </section>
       </div>
 
-      <p className="mx-auto mt-14 max-w-2xl text-sm leading-7 text-muted-foreground">
+      <p className="mx-auto mt-14 max-w-2xl text-sm leading-7 text-black">
         Limited partners and mandate-fit operators can leave a note at the LP
         desk. Completed notes are posted to Cloud Run and stored in Firestore
         in GCP project <span className="font-mono">devo-holding</span>.

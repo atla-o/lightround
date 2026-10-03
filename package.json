@@ -6,7 +6,8 @@
     "dev": "next dev --port 43180",
     "build": "next build",
     "start": "next start --port 43180",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:map": "node --experimental-strip-types --test src/lib/house.check.ts src/lib/read-key.check.ts src/lib/interest-notes.check.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

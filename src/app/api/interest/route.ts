@@ -16,6 +16,15 @@ export async function POST(request: Request) {
     )
   }
 
+  const record =
+    body && typeof body === "object" ? (body as Record<string, unknown>) : null
+  if (record && record.website) {
+    return NextResponse.json(
+      { ok: false, error: "Check the required fields." },
+      { status: 400 }
+    )
+  }
+
   const parsed = parseInterestDraft(body)
   if (!parsed.ok) {
     return NextResponse.json(

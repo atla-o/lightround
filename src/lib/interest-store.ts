@@ -2,6 +2,7 @@ import { Firestore, Timestamp } from "@google-cloud/firestore"
 import { gcp } from "@/lib/gcp"
 import type { InterestNote, InterestNoteDraft } from "@/lib/interest-notes"
 import { isInterestRole } from "@/lib/interest-notes"
+import { createReadKey } from "@/lib/read-key"
 
 let client: Firestore | null = null
 
@@ -28,7 +29,9 @@ function asNote(id: string, data: Record<string, unknown>): InterestNote | null 
     typeof data.email !== "string" ||
     typeof data.organization !== "string" ||
     !isInterestRole(data.role) ||
-    typeof data.note !== "string"
+    typeof data.note !== "string" ||
+    typeof data.readKey !== "string" ||
+    data.readKey.length === 0
   ) {
     return null
   }
@@ -40,12 +43,14 @@ function asNote(id: string, data: Record<string, unknown>): InterestNote | null 
     organization: data.organization,
     role: data.role,
     note: data.note,
+    readKey: data.readKey,
     receivedAt: toIso(data.receivedAt),
   }
 }
 
 export async function writeInterestNote(draft: InterestNoteDraft): Promise<InterestNote> {
   const receivedAt = Timestamp.now()
+  const readKey = createReadKey()
   const ref = firestore().collection(gcp.collections.lpNotes).doc()
 
   await ref.set({
@@ -54,6 +59,7 @@ export async function writeInterestNote(draft: InterestNoteDraft): Promise<Inter
     organization: draft.organization,
     role: draft.role,
     note: draft.note,
+    readKey,
     receivedAt,
     source: "lightround-web",
     projectId: gcp.projectId,
@@ -74,4 +80,8 @@ export async function readInterestNote(id: string): Promise<InterestNote | null>
 
 export function deskUnavailableMessage() {
   return `The desk could not store this note in GCP project ${gcp.projectId}.`
+}
+
+export function deskReadUnavailableMessage() {
+  return `The desk could not read this note in GCP project ${gcp.projectId}.`
 }

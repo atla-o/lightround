@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, type FormEvent, type ReactNode } from "react"
+import { InterestReceipt } from "@/components/interest-receipt"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  formatReceivedAt,
   parseInterestDraft,
+  READ_KEY_HEADER,
   roleLabels,
   type InterestFieldErrors,
   type InterestNote,
@@ -29,6 +30,7 @@ export function InterestForm() {
   const [received, setReceived] = useState<InterestNote | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [website, setWebsite] = useState("")
 
   function update<K extends keyof InterestNoteDraft>(
     key: K,
@@ -45,6 +47,12 @@ export function InterestForm() {
     if (!parsed.ok) {
       setErrors(parsed.errors)
       setSubmitError(null)
+      const firstInvalid = (
+        ["name", "email", "organization", "role", "note"] as const
+      ).find((key) => parsed.errors[key])
+      if (firstInvalid) {
+        document.getElementById(firstInvalid)?.focus()
+      }
       return
     }
 
@@ -54,7 +62,8 @@ export function InterestForm() {
       const response = await fetch("/api/interest", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(parsed.draft),
+        body: JSON.stringify({ ...parsed.draft, website }),
+        signal: AbortSignal.timeout(12000),
       })
       const payload = (await response.json().catch(() => null)) as
         | { ok: true; note: InterestNote }
@@ -73,7 +82,10 @@ export function InterestForm() {
         return
       }
 
-      const recovered = await fetch(`/api/interest/${payload.note.id}`)
+      const recovered = await fetch(`/api/interest/${payload.note.id}`, {
+        headers: { [READ_KEY_HEADER]: payload.note.readKey },
+        signal: AbortSignal.timeout(12000),
+      })
       const recoveredPayload = (await recovered.json().catch(() => null)) as
         | { ok: true; note: InterestNote }
         | { ok: false; error?: string }
@@ -82,11 +94,13 @@ export function InterestForm() {
       if (recovered.ok && recoveredPayload?.ok) {
         setReceived(recoveredPayload.note)
         setFields(empty)
+        setWebsite("")
         return
       }
 
-      setReceived(payload.note)
-      setFields(empty)
+      setSubmitError(
+        `The desk stored receipt ${payload.note.id} but could not read it back. Keep read key ${payload.note.readKey} and use Recover a receipt.`
+      )
     } catch {
       setSubmitError("The desk could not be reached. Try again.")
     } finally {
@@ -96,7 +110,7 @@ export function InterestForm() {
 
   if (received) {
     return (
-      <ReceivedCard
+      <InterestReceipt
         note={received}
         onWriteAnother={() => {
           setReceived(null)
@@ -108,7 +122,21 @@ export function InterestForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5" noValidate>
+    <form onSubmit={onSubmit} className="relative space-y-5 text-black" noValidate>
+      <div
+        className="pointer-events-none absolute top-0 left-0 h-px w-px overflow-hidden opacity-0"
+        aria-hidden="true"
+      >
+        <label htmlFor="website">Website</label>
+        <input
+          id="website"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          value={website}
+          onChange={(event) => setWebsite(event.target.value)}
+        />
+      </div>
       {submitError ? (
         <p
           role="alert"
@@ -184,66 +212,13 @@ export function InterestForm() {
         >
           {submitting ? "Filing…" : "Submit this note"}
         </Button>
-        <p className="text-xs leading-5 text-muted-foreground">
+        <p className="text-xs leading-5 text-black">
           Posted to Cloud Run, stored in Firestore project{" "}
           <span className="font-mono">devo-holding</span>. No filing, no mail
           blast.
         </p>
       </div>
     </form>
-  )
-}
-
-function ReceivedCard({
-  note,
-  onWriteAnother,
-}: {
-  note: InterestNote
-  onWriteAnother: () => void
-}) {
-  return (
-    <div
-      role="status"
-      className="border border-border bg-card px-5 py-6 sm:px-6"
-    >
-      <p className="text-[0.68rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-        Received
-      </p>
-      <p className="mt-3 text-base leading-7">
-        The desk stored this note in GCP project{" "}
-        <span className="font-mono text-sm">devo-holding</span> at{" "}
-        {formatReceivedAt(note.receivedAt)}. Receipt{" "}
-        <span className="font-mono text-sm">{note.id}</span>.
-      </p>
-      <dl className="mt-5 space-y-3 text-sm leading-6">
-        <ReceiptRow label="Name" value={note.name} />
-        <ReceiptRow label="Email" value={note.email} />
-        {note.organization ? (
-          <ReceiptRow label="Organization" value={note.organization} />
-        ) : null}
-        <ReceiptRow label="Role" value={roleLabels[note.role]} />
-        <ReceiptRow label="Note" value={note.note} />
-      </dl>
-      <Button
-        type="button"
-        variant="outline"
-        className="mt-6 rounded-sm"
-        onClick={onWriteAnother}
-      >
-        Write another note
-      </Button>
-    </div>
-  )
-}
-
-function ReceiptRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-[0.68rem] tracking-[0.12em] text-muted-foreground uppercase">
-        {label}
-      </dt>
-      <dd className="mt-1 whitespace-pre-wrap">{value}</dd>
-    </div>
   )
 }
 

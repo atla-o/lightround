@@ -31,7 +31,7 @@ Lightround is a counterdecadence fund under **Devo**. Thesis: allocate capital a
 
 Voice: sharp, institutional, serious. Not meme-y. Not a conspiracy blog. Not activism malware. Not a doxxing tool. Screens are **investment criteria** — what we fund *for* and what we refuse — never calls to violence or illegal interference.
 
-Parent: Devo. Siblings: Phenomatch, Antiporn, Lessfret (wellness), Acashi. Public domain family: devoutshaman.com. Public product host: **https://lightround.devoutshaman.com** (Cloud Run / GCP; DNS-only on Cloudflare). Do not deploy unless the user explicitly asks.
+Parent: Devo. Investor map (Oct 1): four peer tops — Arcada, Lightround, Humanehealth, Mattercircle. Acashi, Phenomatch, Antiporn, Lessfret, and devoutshaman sit under the Humanehealth clinic network. Mattercircle is the matter/physics peer (factory and essentials). Do not present Unnaturalfertility as a peer hub. Public domain family: devoutshaman.com. Public product host: **https://lightround.devoutshaman.com** (Cloud Run / GCP; DNS-only on Cloudflare). Do not deploy unless the user explicitly asks.
 
 Publisher: **Devo / atla-o**.
 
@@ -46,7 +46,7 @@ Publisher: **Devo / atla-o**.
 | Public product host | [lightround.devoutshaman.com](https://lightround.devoutshaman.com) — Cloud Run `lightround-web` (`devo-holding`, `us-west1`); Cloudflare is DNS only |
 | App data / CRM / LP pipeline | **GCP** project `devo-holding`. Firestore collection `lightround_lp_notes` via `@google-cloud/firestore`. Not the Firebase JS SDK. |
 
-The LP desk POSTs to `/api/interest` on Cloud Run `lightround-web`. Success is a Firestore write that can be read back (`GET /api/interest/[id]`). Do not fall back to localStorage as the success path.
+The LP desk POSTs to `/api/interest` on Cloud Run `lightround-web`. Success is a Firestore write that can be read back (`GET /api/interest/[id]` with header `x-read-key`). Do not fall back to localStorage as the success path. A receipt id alone is not enough to read a note.
 
 Do not deploy this site (Vercel, Pages, Cloud Run, or `lightround.devoutshaman.com`) from an agent session unless the user explicitly orders a deploy. Cloudflare stays DNS-only — do not park the product on Pages or Workers.
 
@@ -54,14 +54,14 @@ Do not deploy this site (Vercel, Pages, Cloud Run, or `lightround.devoutshaman.c
 
 - No fake AUM, returns, or forged filings.
 - No targeting of real private individuals for harassment.
-- Portfolio entries that are not Devo siblings must be labeled **example thesis**.
+- External names in the book must be labeled **example thesis**. The four peer tops and the Humanehealth clinic network are the house map, and they are not AUM.
 - Mandate language stays constructive: resilience, durable infrastructure, human flourishing, fertility/health-adjacent where it fits Devo, clean materials/energy alternatives, medicine that heals, anti-frailty, pro-human culture.
 - Against-screens (petrochemical lock-in, poison-as-medicine capture, frail infrastructure, antihuman programs, industrial-ag/GMO capture the thesis rejects) are **screens**, not a target list.
 
 ## Stack
 
 - Next.js App Router, TypeScript, Tailwind v4, shadcn/ui (`src/components/ui`)
-- Copy and book data live in `src/lib/` (`site.ts`, `screens.ts`, `allocations.ts`)
+- Copy and book data live in `src/lib/` (`site.ts`, `house.ts`, `screens.ts`, `allocations.ts`)
 - Dev server: `npm run dev` → port **43180**
 
 Read Next.js notes in `node_modules/next/dist/docs/` before inventing APIs from older training data.
