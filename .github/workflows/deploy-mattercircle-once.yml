@@ -1,4 +1,4 @@
-# Authorize devoutshaman.com for the deploy account, then confirm the mapping.
+# Authorize devoutshaman.com for the deploy account using the existing TXT.
 # Does not change DNS and does not rebuild.
 name: Map mattercircle domain
 
@@ -20,6 +20,7 @@ jobs:
           project_id: devo-holding
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/siteverification
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
@@ -28,22 +29,34 @@ jobs:
         run: |
           set -u
           token="$(gcloud auth print-access-token)"
-          body='{"site":{"type":"INET_DOMAIN","identifier":"devoutshaman.com"}}'
-          code="$(curl -sS -o /tmp/verify.json -w '%{http_code}' -X POST \
+          body='{"site":{"type":"INET_DOMAIN","identifier":"devoutshaman.com"},"verificationMethod":"DNS_TXT"}'
+          code="$(curl -sS -o /tmp/token.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $token" \
+            -H 'Content-Type: application/json' \
+            "https://www.googleapis.com/siteVerification/v1/token" \
+            --data "$body")"
+          echo "token_http=$code"
+          python3 - <<'PY'
+          import json, subprocess
+          d = json.load(open("/tmp/token.json"))
+          err = d.get("error") or {}
+          print("token_error", err.get("code"), (err.get("message") or "")[:200])
+          issued = d.get("token") or ""
+          txt = subprocess.check_output(["dig","+short","devoutshaman.com","TXT"], text=True)
+          print("issued_len", len(issued))
+          print("matches_existing_txt", bool(issued) and issued in txt)
+          PY
+          vcode="$(curl -sS -o /tmp/verify.json -w '%{http_code}' -X POST \
             -H "Authorization: Bearer $token" \
             -H 'Content-Type: application/json' \
             "https://www.googleapis.com/siteVerification/v1/webResource?verificationMethod=DNS_TXT" \
-            --data "$body")"
-          echo "verify_http=$code"
+            --data '{"site":{"type":"INET_DOMAIN","identifier":"devoutshaman.com"}}')"
+          echo "verify_http=$vcode"
           python3 - <<'PY'
           import json
           d = json.load(open("/tmp/verify.json"))
           err = d.get("error") or {}
-          print("error_code", err.get("code"))
-          msg = err.get("message") or ""
-          print("error_message", msg[:300])
+          print("verify_error", err.get("code"), (err.get("message") or "")[:300])
           site = d.get("site") or {}
           print("site", site.get("type"), site.get("identifier"))
-          owners = d.get("owners") or []
-          print("owners", len(owners))
           PY
