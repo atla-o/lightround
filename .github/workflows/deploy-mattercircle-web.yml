@@ -1,6 +1,5 @@
-# Deploys atla-o/mattercircle main onto the existing mattercircle-web service.
-# Does not change DNS or Cloudflare. The Stripe key is read from an Actions secret
-# when that secret exists, and is never written into the repo.
+# Puts STRIPE_SECRET_KEY on mattercircle-web from a one-time private upload.
+# The key is not stored in this repo. The upload URL is write-only.
 name: Deploy mattercircle-web
 
 on:
@@ -13,9 +12,9 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  stripe-key:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -27,23 +26,70 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Checkout mattercircle main
-        run: git clone --depth 1 --branch main https://github.com/atla-o/mattercircle.git mattercircle
-
-      - name: Deploy mattercircle-web
-        working-directory: mattercircle
-        env:
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      - name: Open a private upload slot
+        id: slot
         run: |
           set -euo pipefail
-          extra=()
-          if [ -n "${STRIPE_SECRET_KEY}" ]; then
-            extra+=(--update-env-vars=^@^STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY})
+          bucket="devo-holding-mc-stripe-inbox"
+          if ! gcloud storage buckets describe "gs://${bucket}" --project=devo-holding >/dev/null 2>&1; then
+            gcloud storage buckets create "gs://${bucket}" \
+              --project=devo-holding \
+              --location=us-west1 \
+              --uniform-bucket-level-access
           fi
-          gcloud run deploy mattercircle-web \
-            --source . \
+          object="incoming/${GITHUB_RUN_ID}"
+          signed="$(gcloud storage sign-url "gs://${bucket}/${object}" \
+            --http-verb=PUT \
+            --duration=15m \
+            --format='value(signed_url)')"
+          echo "bucket=${bucket}" >> "$GITHUB_OUTPUT"
+          echo "object=${object}" >> "$GITHUB_OUTPUT"
+          echo "UPLOAD_URL=${signed}"
+
+      - name: Apply the key when it arrives
+        env:
+          BUCKET: ${{ steps.slot.outputs.bucket }}
+          OBJECT: ${{ steps.slot.outputs.object }}
+        run: |
+          set -euo pipefail
+          found=0
+          for _ in $(seq 1 36); do
+            if gcloud storage cat "gs://${BUCKET}/${OBJECT}" --project=devo-holding > /tmp/stripe-key 2>/dev/null; then
+              found=1
+              break
+            fi
+            sleep 5
+          done
+          if [ "$found" != "1" ]; then
+            echo "No key arrived"
+            exit 1
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          value = Path("/tmp/stripe-key").read_text().strip()
+          if not value.startswith("rk_") or len(value) < 40:
+              raise SystemExit("unexpected key shape")
+          Path("/tmp/stripe-key").write_text(value)
+          print("key_length", len(value))
+          PY
+          gcloud run services update mattercircle-web \
             --project=devo-holding \
             --region=us-west1 \
-            --no-invoker-iam-check \
-            --quiet \
-            "${extra[@]}"
+            --update-env-vars="^@^STRIPE_SECRET_KEY=$(cat /tmp/stripe-key)" \
+            --format="value(status.url)" \
+            --quiet > /tmp/service-url.txt 2>/tmp/update-err.txt || {
+              if grep -q 'rk_' /tmp/update-err.txt; then
+                echo "update failed; details redacted"
+              else
+                cat /tmp/update-err.txt
+              fi
+              exit 1
+            }
+          if grep -q 'rk_' /tmp/update-err.txt; then
+            echo "update stderr redacted"
+          else
+            cat /tmp/update-err.txt
+          fi
+          echo "service_url=$(cat /tmp/service-url.txt)"
+          gcloud storage rm "gs://${BUCKET}/${OBJECT}" --project=devo-holding
+          shred -u /tmp/stripe-key || rm -f /tmp/stripe-key
