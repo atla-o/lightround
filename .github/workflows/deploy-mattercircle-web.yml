@@ -1,5 +1,5 @@
 # Puts STRIPE_SECRET_KEY on mattercircle-web from a one-time private upload.
-# The key is not stored in this repo. The upload URL is write-only.
+# The key is not stored in this repo.
 name: Deploy mattercircle-web
 
 on:
@@ -31,20 +31,31 @@ jobs:
         run: |
           set -euo pipefail
           bucket="devo-holding-mc-stripe-inbox"
-          if ! gcloud storage buckets describe "gs://${bucket}" --project=devo-holding >/dev/null 2>&1; then
-            gcloud storage buckets create "gs://${bucket}" \
-              --project=devo-holding \
-              --location=us-west1 \
-              --uniform-bucket-level-access
-          fi
           object="incoming/${GITHUB_RUN_ID}"
-          signed="$(gcloud storage sign-url "gs://${bucket}/${object}" \
-            --http-verb=PUT \
-            --duration=15m \
-            --format='value(signed_url)')"
+          token="$(gcloud auth print-access-token)"
+          code="$(curl -sS -D /tmp/upload-headers -o /tmp/start-body -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${token}" \
+            -H "Content-Type: application/octet-stream" \
+            -H "x-goog-resumable: start" \
+            "https://storage.googleapis.com/upload/storage/v1/b/${bucket}/o?uploadType=resumable&name=${object}")"
+          unset token
+          echo "start_http=${code}"
+          if [ "${code}" != "200" ]; then
+            python3 -c 'from pathlib import Path; print(Path("/tmp/start-body").read_text()[:400])'
+            exit 1
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          loc = ""
+          for line in Path("/tmp/upload-headers").read_text().splitlines():
+              if line.lower().startswith("location:"):
+                  loc = line.split(":", 1)[1].strip()
+          if not loc.startswith("https://"):
+              raise SystemExit("missing upload location")
+          print("UPLOAD_URL=" + loc)
+          PY
           echo "bucket=${bucket}" >> "$GITHUB_OUTPUT"
           echo "object=${object}" >> "$GITHUB_OUTPUT"
-          echo "UPLOAD_URL=${signed}"
 
       - name: Apply the key when it arrives
         env:
