@@ -2,6 +2,7 @@
 # and map arcada.devoutshaman.com the same way phenomatch.devoutshaman.com
 # is mapped. DNS already exists (CNAME ghs.googlehosted.com, DNS-only).
 # Do not change Cloudflare. Does not change Lightround.
+# Redeploy arcada main fa3c30b6519b6762614949ae258d197a7957a6a8
 name: Publish arcada host
 
 on:
