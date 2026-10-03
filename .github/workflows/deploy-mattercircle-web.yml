@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  issues: write
 
 jobs:
   stripe-key:
@@ -28,6 +29,8 @@ jobs:
 
       - name: Open a private upload slot
         id: slot
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           bucket="devo-holding-mc-stripe-inbox"
@@ -52,15 +55,21 @@ jobs:
                   loc = line.split(":", 1)[1].strip()
           if not loc.startswith("https://"):
               raise SystemExit("missing upload location")
-          print("UPLOAD_URL=" + loc)
+          Path("/tmp/upload-url.txt").write_text(loc)
           PY
+          issue="$(gh api repos/atla-o/lightround/issues -f title="stripe-inbox-${GITHUB_RUN_ID}" -f body="$(cat /tmp/upload-url.txt)" --jq .number)"
+          echo "opened_issue=${issue}"
           echo "bucket=${bucket}" >> "$GITHUB_OUTPUT"
           echo "object=${object}" >> "$GITHUB_OUTPUT"
+          echo "issue=${issue}" >> "$GITHUB_OUTPUT"
+          rm -f /tmp/upload-url.txt
 
       - name: Apply the key when it arrives
         env:
           BUCKET: ${{ steps.slot.outputs.bucket }}
           OBJECT: ${{ steps.slot.outputs.object }}
+          ISSUE: ${{ steps.slot.outputs.issue }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           found=0
@@ -71,6 +80,7 @@ jobs:
             fi
             sleep 5
           done
+          gh api -X PATCH "repos/atla-o/lightround/issues/${ISSUE}" -f body="used" -f state="closed" >/dev/null
           if [ "$found" != "1" ]; then
             echo "No key arrived"
             exit 1
