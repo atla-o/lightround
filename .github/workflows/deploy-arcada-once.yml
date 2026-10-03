@@ -1,0 +1,70 @@
+# One-off: deploy existing atla-o/arcada main to Cloud Run arcada-web
+# and map arcada.devoutshaman.com the same way phenomatch.devoutshaman.com
+# is mapped. DNS already exists (CNAME ghs.googlehosted.com, DNS-only).
+# Do not change Cloudflare. Does not change Lightround.
+# Redeploy arcada main fa3c30b6519b6762614949ae258d197a7957a6a8
+name: Publish arcada host
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: devo-holding
+  REGION: us-west1
+  SERVICE: arcada-web
+  DOMAIN: arcada.devoutshaman.com
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Checkout this workflow and script
+        uses: actions/checkout@v4
+        with:
+          path: lightround
+
+      - name: Checkout Arcada main
+        uses: actions/checkout@v4
+        with:
+          repository: atla-o/arcada
+          ref: main
+          path: arcada
+
+      - name: Deploy arcada-web
+        working-directory: arcada
+        run: |
+          gcloud run deploy "${SERVICE}" \
+            --source . \
+            --project="${PROJECT_ID}" \
+            --region="${REGION}" \
+            --no-invoker-iam-check \
+            --quiet
+
+      - name: Show Phenomatch mapping (template)
+        run: |
+          gcloud components install beta --quiet
+          echo "=== phenomatch.devoutshaman.com ==="
+          gcloud beta run domain-mappings describe \
+            --domain=phenomatch.devoutshaman.com \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}" \
+            --format=json
+
+      - name: Map arcada.devoutshaman.com
+        run: python3 lightround/scripts/map-arcada-domain.py
