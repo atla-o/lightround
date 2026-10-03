@@ -1,0 +1,49 @@
+# Deploys atla-o/mattercircle main onto the existing mattercircle-web service.
+# Does not change DNS or Cloudflare. The Stripe key is read from an Actions secret
+# when that secret exists, and is never written into the repo.
+name: Deploy mattercircle-web
+
+on:
+  push:
+    branches: [cursor/deploy-mattercircle-web-e8a3]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: devo-holding
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Checkout mattercircle main
+        run: git clone --depth 1 --branch main https://github.com/atla-o/mattercircle.git mattercircle
+
+      - name: Deploy mattercircle-web
+        working-directory: mattercircle
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          extra=()
+          if [ -n "${STRIPE_SECRET_KEY}" ]; then
+            extra+=(--update-env-vars=^@^STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY})
+          fi
+          gcloud run deploy mattercircle-web \
+            --source . \
+            --project=devo-holding \
+            --region=us-west1 \
+            --no-invoker-iam-check \
+            --quiet \
+            "${extra[@]}"
