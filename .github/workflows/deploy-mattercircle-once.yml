@@ -1,6 +1,4 @@
-# Map mattercircle.devoutshaman.com onto the existing Cloud Run service.
-# Same project, region, and mapping shape as phenomatch.devoutshaman.com.
-# Does not deploy, rebuild, or change DNS.
+# Read the Mattercircle Cloud Run domain mapping. Does not deploy or change DNS.
 name: Map mattercircle domain
 
 on:
@@ -13,7 +11,7 @@ permissions:
 jobs:
   map:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -25,44 +23,11 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Create the domain mapping
+      - name: Describe the domain mapping
         run: |
           set -u
           token="$(gcloud auth print-access-token)"
-          echo "account=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
-          sites="$(curl -sS -H "Authorization: Bearer $token" \
-            "https://www.googleapis.com/siteVerification/v1/webResource")"
-          Z="$sites" python3 - <<'PY'
-          import json, os
-          d = json.loads(os.environ["Z"])
-          items = d.get("items") or []
-          print("verified_sites", len(items))
-          for item in items:
-              site = item.get("site") or {}
-              print("site", site.get("type"), site.get("identifier"))
-          if d.get("error"):
-              print("site_error", d["error"].get("code"), d["error"].get("message"))
-          PY
-          body='{"apiVersion":"domains.cloudrun.com/v1","kind":"DomainMapping","metadata":{"name":"mattercircle.devoutshaman.com","namespace":"devo-holding"},"spec":{"routeName":"mattercircle-web"}}'
-          echo "===== api create ====="
-          code="$(curl -sS -o /tmp/mapping.json -w '%{http_code}' -X POST \
-            -H "Authorization: Bearer $token" \
-            -H 'Content-Type: application/json' \
-            "https://run.googleapis.com/v1/projects/devo-holding/locations/us-west1/domainmappings" \
-            --data "$body")"
-          echo "http_status=$code"
-          python3 - <<'PY'
-          import json
-          d = json.load(open("/tmp/mapping.json"))
-          err = d.get("error") or {}
-          print("error_code", err.get("code"))
-          print("error_message", err.get("message"))
-          meta = d.get("metadata") or {}
-          print("name", meta.get("name"))
-          status = d.get("status") or {}
-          print("conditions", status.get("conditions"))
-          print("records", status.get("resourceRecords"))
-          PY
-          if [ "$code" != "200" ] && [ "$code" != "201" ] && [ "$code" != "409" ]; then
-            exit 1
-          fi
+          curl -sS -H "Authorization: Bearer $token" \
+            "https://run.googleapis.com/v1/projects/devo-holding/locations/us-west1/domainmappings/mattercircle.devoutshaman.com" \
+            -o /tmp/mapping.json
+          python3 -m json.tool /tmp/mapping.json
