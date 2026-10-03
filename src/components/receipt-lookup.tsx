@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react"
 import { InterestReceipt } from "@/components/interest-receipt"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { READ_KEY_HEADER, type InterestNote } from "@/lib/interest-notes"
@@ -40,6 +39,7 @@ export function ReceiptLookup() {
     try {
       const response = await fetch(`/api/interest/${encodeURIComponent(nextId)}`, {
         headers: { [READ_KEY_HEADER]: nextKey },
+        signal: AbortSignal.timeout(12000),
       })
       const payload = (await response.json().catch(() => null)) as
         | { ok: true; note: InterestNote }
@@ -80,7 +80,13 @@ export function ReceiptLookup() {
       <p className="mt-3 max-w-xl text-sm leading-6">
         Load one stored note with the receipt id and the read key from the desk.
       </p>
-      <form onSubmit={onSubmit} className="mt-6 space-y-5" noValidate>
+      <form
+        onSubmit={onSubmit}
+        method="post"
+        action="/contact"
+        className="mt-6 space-y-5"
+        noValidate
+      >
         <div className="space-y-2">
           <Label htmlFor="receipt-id" className="text-[0.72rem] tracking-[0.12em] uppercase">
             Receipt id
@@ -98,7 +104,7 @@ export function ReceiptLookup() {
             }}
           />
           {errors.id ? (
-            <p className="text-xs text-destructive" role="alert">
+            <p className="border border-black bg-white px-3 py-2 text-sm text-black" role="alert">
               {errors.id}
             </p>
           ) : null}
@@ -120,38 +126,43 @@ export function ReceiptLookup() {
             }}
           />
           {errors.readKey ? (
-            <p className="text-xs text-destructive" role="alert">
+            <p className="border border-black bg-white px-3 py-2 text-sm text-black" role="alert">
               {errors.readKey}
             </p>
           ) : null}
         </div>
-        <Button
+        <button
           type="submit"
           disabled={status === "loading"}
-          className="h-10 rounded-sm px-4"
+          className="inline-flex h-10 items-center rounded-sm bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           {status === "loading" ? "Checking the desk…" : "Load this receipt"}
-        </Button>
+        </button>
       </form>
 
       {note ? (
         <div className="mt-6">
           <InterestReceipt note={note} />
         </div>
-      ) : status === "missing" || status === "error" ? (
+      ) : null}
+      {status === "missing" || status === "error" ? (
         <p
           role="alert"
-          className="mt-6 border border-destructive/40 bg-white px-4 py-3 text-sm leading-6 text-destructive"
+          className="mt-6 border border-black bg-white px-4 py-3 text-sm leading-6 text-black"
         >
           {message}
         </p>
-      ) : (
+      ) : null}
+      {status === "loading" ? (
         <p className="mt-6 border border-border bg-white px-4 py-6 text-sm leading-6 text-black">
-          {status === "loading"
-            ? "Checking the desk…"
-            : "No receipt is loaded. Enter the receipt id and the read key the desk issued."}
+          Checking the desk…
         </p>
-      )}
+      ) : null}
+      {!note && status === "idle" && !errors.id && !errors.readKey ? (
+        <p className="mt-6 border border-border bg-white px-4 py-6 text-sm leading-6 text-black">
+          No receipt is loaded. Enter the receipt id and the read key the desk issued.
+        </p>
+      ) : null}
     </section>
   )
 }

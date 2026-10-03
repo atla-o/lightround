@@ -81,3 +81,7 @@ export async function readInterestNote(id: string): Promise<InterestNote | null>
 export function deskUnavailableMessage() {
   return `The desk could not store this note in GCP project ${gcp.projectId}.`
 }
+
+export function deskReadUnavailableMessage() {
+  return `The desk could not read this note in GCP project ${gcp.projectId}.`
+}

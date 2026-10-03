@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { READ_KEY_HEADER } from "@/lib/interest-notes"
-import { deskUnavailableMessage, readInterestNote } from "@/lib/interest-store"
+import { deskReadUnavailableMessage, readInterestNote } from "@/lib/interest-store"
 import { readKeysMatch } from "@/lib/read-key"
 
 export const runtime = "nodejs"
@@ -37,7 +37,7 @@ export async function GET(
     return NextResponse.json({ ok: true, note })
   } catch {
     return NextResponse.json(
-      { ok: false, error: deskUnavailableMessage() },
+      { ok: false, error: deskReadUnavailableMessage() },
       { status: 503 }
     )
   }

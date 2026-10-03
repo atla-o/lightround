@@ -63,6 +63,7 @@ export function InterestForm() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...parsed.draft, website }),
+        signal: AbortSignal.timeout(12000),
       })
       const payload = (await response.json().catch(() => null)) as
         | { ok: true; note: InterestNote }
@@ -83,6 +84,7 @@ export function InterestForm() {
 
       const recovered = await fetch(`/api/interest/${payload.note.id}`, {
         headers: { [READ_KEY_HEADER]: payload.note.readKey },
+        signal: AbortSignal.timeout(12000),
       })
       const recoveredPayload = (await recovered.json().catch(() => null)) as
         | { ok: true; note: InterestNote }
