@@ -1,0 +1,55 @@
+# One-off: map humanehealth.devoutshaman.com onto Cloud Run humanehealth-web.
+# Does not deploy or change the Lightround service.
+name: Map humanehealth domain
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: devo-holding
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Show an existing Devo domain mapping
+        run: |
+          gcloud run domain-mappings describe \
+            --domain=acashi.devoutshaman.com \
+            --region=us-west1 \
+            --project=devo-holding \
+            --format=yaml
+
+      - name: Map humanehealth.devoutshaman.com
+        run: |
+          if gcloud run domain-mappings describe \
+            --domain=humanehealth.devoutshaman.com \
+            --region=us-west1 \
+            --project=devo-holding >/dev/null 2>&1; then
+            echo "mapping already exists"
+          else
+            gcloud run domain-mappings create \
+              --service=humanehealth-web \
+              --domain=humanehealth.devoutshaman.com \
+              --region=us-west1 \
+              --project=devo-holding \
+              --quiet
+          fi
+          echo "===== humanehealth mapping ====="
+          gcloud run domain-mappings describe \
+            --domain=humanehealth.devoutshaman.com \
+            --region=us-west1 \
+            --project=devo-holding \
+            --format=yaml
