@@ -1,0 +1,137 @@
+# One-off: mattercircle cannot impersonate the shared deploy service account yet.
+# This workflow runs with Lightround's existing Workload Identity and deploys
+# atla-o/mattercircle main to Cloud Run mattercircle-web, then publishes
+# mattercircle.devoutshaman.com in the existing devoutshaman.com zone.
+# It does not change the Lightround service.
+name: Deploy mattercircle-web once
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+      CF_TOKEN: ${{ secrets.CF_TOKEN }}
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: devo-holding
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Let mattercircle impersonate the deploy account
+        continue-on-error: true
+        run: |
+          gcloud iam service-accounts add-iam-policy-binding \
+            github-cloud-run-deploy@devo-holding.iam.gserviceaccount.com \
+            --project=devo-holding \
+            --role=roles/iam.workloadIdentityUser \
+            --member="principalSet://iam.googleapis.com/projects/384302503084/locations/global/workloadIdentityPools/github-pool/attribute.repository/atla-o/mattercircle"
+
+      - name: Checkout mattercircle
+        uses: actions/checkout@v4
+        with:
+          repository: atla-o/mattercircle
+          ref: main
+          path: mattercircle
+
+      - name: Deploy mattercircle-web
+        working-directory: mattercircle
+        run: |
+          gcloud run deploy mattercircle-web \
+            --source . \
+            --project=devo-holding \
+            --region=us-west1 \
+            --no-invoker-iam-check \
+            --quiet
+
+      - name: Map domain and publish DNS
+        run: |
+          set -u
+          gcloud components install beta --quiet
+          if ! gcloud beta run domain-mappings describe \
+            --domain=mattercircle.devoutshaman.com \
+            --region=us-west1 \
+            --project=devo-holding >/dev/null 2>&1; then
+            gcloud beta run domain-mappings create \
+              --service=mattercircle-web \
+              --domain=mattercircle.devoutshaman.com \
+              --region=us-west1 \
+              --project=devo-holding \
+              --quiet
+          fi
+          gcloud beta run domain-mappings describe \
+            --domain=mattercircle.devoutshaman.com \
+            --region=us-west1 \
+            --project=devo-holding \
+            --format="yaml(status.resourceRecords)"
+
+          python3 - <<'PY'
+          import os
+          names = ["CLOUDFLARE_API_TOKEN", "CF_API_TOKEN", "CLOUDFLARE_TOKEN", "CF_TOKEN"]
+          for name in names:
+              val = os.environ.get(name) or ""
+              print(f"{name}={'set' if val else 'missing'} len={len(val)}")
+          PY
+
+          token="${CLOUDFLARE_API_TOKEN:-${CF_API_TOKEN:-${CLOUDFLARE_TOKEN:-${CF_TOKEN:-}}}}"
+          if [ -z "$token" ]; then
+            echo "NO_CLOUDFLARE_TOKEN"
+            exit 1
+          fi
+
+          zone_json="$(curl -sS -H "Authorization: Bearer $token" \
+            "https://api.cloudflare.com/client/v4/zones?name=devoutshaman.com")"
+          Z="$zone_json" python3 - <<'PY'
+          import json, os
+          d = json.loads(os.environ["Z"])
+          print("zone_success", d.get("success"), "errors", d.get("errors"))
+          result = d.get("result") or []
+          print("zones", len(result))
+          if not result:
+              raise SystemExit(1)
+          open("/tmp/zone_id", "w").write(result[0]["id"])
+          PY
+          zone_id="$(cat /tmp/zone_id)"
+
+          existing="$(curl -sS -H "Authorization: Bearer $token" \
+            "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=CNAME&name=mattercircle.devoutshaman.com")"
+          Z="$existing" python3 - <<'PY'
+          import json, os
+          d = json.loads(os.environ["Z"])
+          rows = d.get("result") or []
+          print("existing", len(rows), "success", d.get("success"))
+          open("/tmp/record_id", "w").write(rows[0]["id"] if rows else "")
+          PY
+          record_id="$(cat /tmp/record_id)"
+          body='{"type":"CNAME","name":"mattercircle","content":"ghs.googlehosted.com","proxied":false,"ttl":1}'
+          if [ -n "$record_id" ]; then
+            resp="$(curl -sS -X PUT -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+              "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" --data "$body")"
+          else
+            resp="$(curl -sS -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+              "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records" --data "$body")"
+          fi
+          Z="$resp" python3 - <<'PY'
+          import json, os, sys
+          d = json.loads(os.environ["Z"])
+          result = d.get("result") or {}
+          print("dns_success", d.get("success"))
+          print("errors", d.get("errors"))
+          print("name", result.get("name"), "content", result.get("content"), "proxied", result.get("proxied"))
+          if not d.get("success"):
+              sys.exit(1)
+          PY
