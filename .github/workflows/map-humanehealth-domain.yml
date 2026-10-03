@@ -1,4 +1,5 @@
-# One-off: map humanehealth.devoutshaman.com onto Cloud Run humanehealth-web.
+# One-off: map humanehealth.devoutshaman.com onto Cloud Run humanehealth-web
+# and add the DNS-only CNAME in the devoutshaman.com Cloudflare zone.
 # Does not deploy or change the Lightround service.
 name: Map humanehealth domain
 
@@ -13,6 +14,11 @@ jobs:
   map:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+      CF_TOKEN: ${{ secrets.CF_TOKEN }}
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -24,32 +30,83 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Show an existing Devo domain mapping
+      - name: Map the domain and publish DNS
         run: |
-          gcloud run domain-mappings describe \
-            --domain=acashi.devoutshaman.com \
-            --region=us-west1 \
-            --project=devo-holding \
-            --format=yaml
+          set -u
+          echo "===== domain-mappings help ====="
+          gcloud run domain-mappings --help || true
+          gcloud beta run domain-mappings --help || true
 
-      - name: Map humanehealth.devoutshaman.com
-        run: |
-          if gcloud run domain-mappings describe \
-            --domain=humanehealth.devoutshaman.com \
-            --region=us-west1 \
-            --project=devo-holding >/dev/null 2>&1; then
-            echo "mapping already exists"
-          else
+          echo "===== secret names ====="
+          gcloud secrets list --project=devo-holding --format='value(name)' || true
+
+          echo "===== existing acashi mapping ====="
+          gcloud run domain-mappings describe --domain=acashi.devoutshaman.com --project=devo-holding --format=yaml || \
+            gcloud beta run domain-mappings describe --domain=acashi.devoutshaman.com --region=us-west1 --project=devo-holding --format=yaml || true
+
+          echo "===== create humanehealth mapping ====="
+          if ! gcloud run domain-mappings describe --domain=humanehealth.devoutshaman.com --project=devo-holding >/dev/null 2>&1 \
+            && ! gcloud beta run domain-mappings describe --domain=humanehealth.devoutshaman.com --region=us-west1 --project=devo-holding >/dev/null 2>&1; then
             gcloud run domain-mappings create \
+              --service=humanehealth-web \
+              --domain=humanehealth.devoutshaman.com \
+              --project=devo-holding \
+              --quiet \
+            || gcloud beta run domain-mappings create \
               --service=humanehealth-web \
               --domain=humanehealth.devoutshaman.com \
               --region=us-west1 \
               --project=devo-holding \
               --quiet
+          else
+            echo "mapping already exists"
           fi
-          echo "===== humanehealth mapping ====="
-          gcloud run domain-mappings describe \
-            --domain=humanehealth.devoutshaman.com \
-            --region=us-west1 \
-            --project=devo-holding \
-            --format=yaml
+          gcloud run domain-mappings describe --domain=humanehealth.devoutshaman.com --project=devo-holding --format=yaml \
+            || gcloud beta run domain-mappings describe --domain=humanehealth.devoutshaman.com --region=us-west1 --project=devo-holding --format=yaml
+
+          token="${CLOUDFLARE_API_TOKEN:-${CF_API_TOKEN:-${CLOUDFLARE_TOKEN:-${CF_TOKEN:-}}}}"
+          if [ -z "$token" ]; then
+            for name in $(gcloud secrets list --project=devo-holding --format='value(name)'); do
+              case "$name" in
+                *cloudflare*|*CLOUDFLARE*|*cf-api*|*CF_API*|*cf_api*)
+                  echo "using secret manager name: $name"
+                  token="$(gcloud secrets versions access latest --secret="$name" --project=devo-holding)"
+                  break
+                  ;;
+              esac
+            done
+          fi
+          if [ -z "$token" ]; then
+            echo "NO_CLOUDFLARE_TOKEN"
+            exit 1
+          fi
+          echo "CLOUDFLARE_TOKEN_PRESENT"
+
+          zone_json="$(curl -fsS -H "Authorization: Bearer $token" \
+            "https://api.cloudflare.com/client/v4/zones?name=devoutshaman.com")"
+          zone_id="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["result"][0]["id"])' <<<"$zone_json")"
+          echo "zone_id=$zone_id"
+
+          existing="$(curl -fsS -H "Authorization: Bearer $token" \
+            "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=CNAME&name=humanehealth.devoutshaman.com")"
+          python3 - <<'PY' "$existing"
+          import json,sys
+          d=json.loads(sys.argv[1])
+          print("existing_count", len(d.get("result") or []))
+          for r in d.get("result") or []:
+              print(r.get("id"), r.get("type"), r.get("name"), r.get("content"), "proxied="+str(r.get("proxied")))
+          PY
+
+          body='{"type":"CNAME","name":"humanehealth","content":"ghs.googlehosted.com","proxied":false,"ttl":1,"comment":"humanehealth-web Cloud Run"}'
+          record_id="$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); print((d.get("result") or [{}])[0].get("id",""))' "$existing")"
+          if [ -n "$record_id" ]; then
+            echo "updating $record_id"
+            curl -fsS -X PUT -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+              "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" \
+              --data "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("success"), (d.get("result") or {}).get("name"), (d.get("result") or {}).get("content"), (d.get("result") or {}).get("proxied"))'
+          else
+            echo "creating CNAME"
+            curl -fsS -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+              "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records" \
+              --data "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("success"), d.get("errors"), (d.get("result") or {}).get("name"), (d.get("result") or {}).get("content"), (d.get("result") or {}).get("proxied"))'
+          fi
