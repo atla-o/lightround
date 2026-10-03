@@ -33,6 +33,11 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Checkout this workflow and script
+        uses: actions/checkout@v4
+        with:
+          path: lightround
+
       - name: Checkout Arcada main
         uses: actions/checkout@v4
         with:
@@ -61,22 +66,4 @@ jobs:
             --format=json
 
       - name: Map arcada.devoutshaman.com
-        run: |
-          if gcloud beta run domain-mappings describe \
-            --domain="${DOMAIN}" \
-            --region="${REGION}" \
-            --project="${PROJECT_ID}" >/dev/null 2>&1; then
-            echo "mapping already exists"
-          else
-            gcloud beta run domain-mappings create \
-              --service="${SERVICE}" \
-              --domain="${DOMAIN}" \
-              --region="${REGION}" \
-              --project="${PROJECT_ID}" \
-              --quiet
-          fi
-          gcloud beta run domain-mappings describe \
-            --domain="${DOMAIN}" \
-            --region="${REGION}" \
-            --project="${PROJECT_ID}" \
-            --format=json
+        run: python3 lightround/scripts/map-arcada-domain.py
